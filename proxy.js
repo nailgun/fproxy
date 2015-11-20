@@ -6,14 +6,11 @@ var net = require('net'),
     minimist = require('minimist');
 
 // TODO: agent?
-// TODO: logging
-
+// TODO: connect, read timeouts
 
 var proxy = http.createServer(function (req, res) {
-    console.log(req.url);  // TODO: logging
     protect(handleRequest, res)(req, res);
 }).on('connect', function (req, clientSocket, head) {
-    console.log(req.url);  // TODO: logging
     var res = new http.ServerResponse(req);
     res.assignSocket(clientSocket);
     protect(handleRequest, res)(req, res, head);
@@ -23,18 +20,21 @@ var main = module.exports = protect(function () {
     var options = minimist(process.argv.slice(2), {
         string: ['port', 'syslog'],
         default: {
-            port: '8833',
-            syslog: ''
+            port: '8833'
         }
     });
 
     proxy.listen(options.port);
-    console.log('Listening on port '+options.port); // TODO
+    console.log('fproxy: forwarding HTTP/HTTPS proxy server is listening on port ' + options.port);
 }, true);
 
 main();
 
 function handleRequest (req, res, head) {
+    res.req = req;
+    var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
+    console.log(req.socket.remoteAddress, req.socket.remotePort, requestLine);
+
     var downsteam = getDownstreamProxy(req, res);
 
     try {
@@ -52,7 +52,7 @@ function handleRequest (req, res, head) {
 
     forwardSocket.on('connect', protect(function () {
         // TODO: try to wrap with clientresponse
-        forwardSocket.write(req.method + ' ' + req.url + ' HTTP/' + req.httpVersion+'\r\n');
+        forwardSocket.write(requestLine + '\r\n');
         Object.keys(req.headers).forEach(function (headerName) {
             var headerValue = req.headers[headerName];
             forwardSocket.write(headerName + ': ' + headerValue + '\r\n');
@@ -135,7 +135,6 @@ function getDownstreamProxy (req, res) {
 
 function protect (func, res) {
     if (!res) {
-        // TODO: logging
         console.error('CRITICAL: Function '+func+' protected without response');
     }
 
@@ -143,6 +142,12 @@ function protect (func, res) {
         try {
             return func.apply(this, arguments);
         } catch (err) {
+            if (res && res.req) {
+                console.error(res.req.socket.remoteAddress, res.req.socket.remotePort, err);
+            } else {
+                console.error(err);
+            }
+
             if (res && res !== true) {
                 if (err.name == 'VisibleError') {
                     fail(res, err.message, err.code);
@@ -150,11 +155,8 @@ function protect (func, res) {
                     fail(res);
                 }
             }
-
-            // TODO: logging
-            console.error(err);
         }
-    }
+    };
 }
 
 function fail (res, message, code) {
