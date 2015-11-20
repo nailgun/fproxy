@@ -165,11 +165,9 @@ function protect (func, res) {
 }
 
 function fail (res, message, code) {
-    // TODO: ServerResponse sends Connection header (but should be proxy-connection)
     res.writeHead(code || 502, {
         'Content-Type': 'text/plain'
     });
-
     res.end('fproxy: ' + (message || 'Error'));
 }
 
