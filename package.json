@@ -2,7 +2,7 @@
   "name": "fproxy",
   "version": "1.0.0",
   "description": "Forwarding HTTP/HTTPS proxy server",
-  "main": "index.js",
+  "main": "proxy.js",
   "dependencies": {
     "http-proxy": "^1.12.0"
   },
