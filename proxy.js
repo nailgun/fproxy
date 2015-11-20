@@ -17,14 +17,14 @@ var proxy = http.createServer(function (req, res) {
 
 var main = module.exports = protect(function () {
     var options = minimist(process.argv.slice(2), {
-        string: ['port', 'syslog'],
+        string: ['port'],
         default: {
             port: '8833'
         }
     });
 
     proxy.listen(options.port);
-    console.log('fproxy: forwarding HTTP/HTTPS proxy server is listening on port ' + options.port);
+    console.log('<5>fproxy: forwarding HTTP/HTTPS proxy server is listening on port ' + options.port);
 }, true);
 
 main();
@@ -32,7 +32,7 @@ main();
 function handleRequest (req, res, head) {
     res.req = req;
     var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
-    console.log(req.socket.remoteAddress, req.socket.remotePort, requestLine);
+    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine);
 
     var downsteam = getDownstreamProxy(req, res);
 
@@ -135,22 +135,28 @@ function getDownstreamProxy (req, res) {
 
 function protect (func, res) {
     if (!res) {
-        console.error('CRITICAL: Function '+func+' protected without response');
+        console.error('<2>CRITICAL: Function '+func+' protected without response');
     }
 
     return function () {
         try {
             return func.apply(this, arguments);
         } catch (err) {
-            var log = console.trace;
+            var log = console.error,
+                prefix = '<3>';
             if (err.name == 'VisibleError' && err.code) {
                 log = console.log;
+                prefix = '<5>';
             }
 
             if (res && res.req) {
-                log(res.req.socket.remoteAddress, res.req.socket.remotePort, err);
+                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, err);
             } else {
-                log(err);
+                log(prefix, err);
+            }
+
+            if (log == console.error && err.stack) {
+                log(prefix, err.stack.split('\n').join('\n' + prefix));
             }
 
             if (res && res !== true) {
