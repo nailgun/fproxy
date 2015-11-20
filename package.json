@@ -1,5 +1,5 @@
 {
-  "name": "fproxy",
+  "name": "http-fproxy",
   "version": "1.0.0",
   "description": "Forwarding HTTP/HTTPS proxy server",
   "main": "proxy.js",
@@ -8,8 +8,14 @@
   },
   "devDependencies": {},
   "scripts": {
+    "start": "node proxy.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nailgun/fproxy"
+  },
+  "homepage": "https://github.com/nailgun/fproxy",
   "author": "Dmitry Bashkatov <dbashkatov@gmail.com>",
   "license": "MIT"
 }
