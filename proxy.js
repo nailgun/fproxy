@@ -77,7 +77,7 @@ function handleRequest (req, res, head) {
         } else if (err.code == 'EPIPE') {
             throw new VisibleError('Downstream connection lost', err, 502);
         } else if (err.code == 'ETIMEDOUT') {
-            throw new VisibleError('Downstream connection timeout', err, 502);
+            throw new VisibleError(err.message, err, 502);
         } else {
             throw err;
         }
