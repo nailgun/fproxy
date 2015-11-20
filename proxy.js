@@ -25,6 +25,14 @@ var main = module.exports = protect(function () {
 
     proxy.listen(options.port);
     console.log('<5>fproxy: forwarding HTTP/HTTPS proxy server is listening on port ' + options.port);
+
+    process.on('SIGTERM', function () {
+        process.exit(0);
+    });
+
+    process.on('SIGINT', function () {
+        process.exit(0);
+    });
 }, true);
 
 main();
