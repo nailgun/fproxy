@@ -1,24 +1,38 @@
-var http = require('http');
-var net = require('net');
-var util = require('util');
+'use strict';
+
+var net = require('net'),
+    http = require('http'),
+    util = require('util'),
+    minimist = require('minimist');
 
 // TODO: agent?
-// TODO: logging, options
+// TODO: logging
 
-// Create an HTTP tunneling proxy
+
 var proxy = http.createServer(function (req, res) {
     console.log(req.url);  // TODO: logging
     protect(handleRequest, res)(req, res);
-});
-
-proxy.on('connect', function(req, clientSocket, head) {
+}).on('connect', function (req, clientSocket, head) {
     console.log(req.url);  // TODO: logging
     var res = new http.ServerResponse(req);
     res.assignSocket(clientSocket);
     protect(handleRequest, res)(req, res, head);
 });
 
-proxy.listen(1337);
+var main = module.exports = protect(function () {
+    var options = minimist(process.argv.slice(2), {
+        string: ['port', 'syslog'],
+        default: {
+            port: '8833',
+            syslog: ''
+        }
+    });
+
+    proxy.listen(options.port);
+    console.log('Listening on port '+options.port); // TODO
+}, true);
+
+main();
 
 function handleRequest (req, res, head) {
     var downsteam = getDownstreamProxy(req, res);
@@ -129,7 +143,7 @@ function protect (func, res) {
         try {
             return func.apply(this, arguments);
         } catch (err) {
-            if (res) {
+            if (res && res !== true) {
                 if (err.name == 'VisibleError') {
                     fail(res, err.message, err.code);
                 } else {
