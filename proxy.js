@@ -75,9 +75,9 @@ function handleRequest (req, res, head) {
         forwardSocket.destroy();
 
         if (err.code == 'ECONNREFUSED') {
-            throw new VisibleError(err.message, err);
+            throw new VisibleError(err.message, err, 502);
         } else if (err.code == 'EPIPE') {
-            throw new VisibleError('Connection lost', err);
+            throw new VisibleError('Connection lost', err, 502);
         } else {
             throw err;
         }
@@ -142,10 +142,15 @@ function protect (func, res) {
         try {
             return func.apply(this, arguments);
         } catch (err) {
+            var log = console.trace;
+            if (err.name == 'VisibleError' && err.code) {
+                log = console.log;
+            }
+
             if (res && res.req) {
-                console.error(res.req.socket.remoteAddress, res.req.socket.remotePort, err);
+                log(res.req.socket.remoteAddress, res.req.socket.remotePort, err);
             } else {
-                console.error(err);
+                log(err);
             }
 
             if (res && res !== true) {
