@@ -40,9 +40,10 @@ main();
 function handleRequest (req, res, head) {
     res.req = req;
     var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
-    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine);
 
     var downsteam = getDownstreamProxy(req, res);
+    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine, 'via',
+        downsteam['host'] + ':' + downsteam['port']);
 
     try {
         var forwardSocket = net.connect({
