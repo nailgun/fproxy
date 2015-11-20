@@ -1,0 +1,15 @@
+{
+  "name": "fproxy",
+  "version": "1.0.0",
+  "description": "Forwarding HTTP/HTTPS proxy server",
+  "main": "index.js",
+  "dependencies": {
+    "http-proxy": "^1.12.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dmitry Bashkatov <dbashkatov@gmail.com>",
+  "license": "MIT"
+}
