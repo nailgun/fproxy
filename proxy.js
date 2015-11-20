@@ -5,8 +5,7 @@ var net = require('net'),
     util = require('util'),
     minimist = require('minimist');
 
-// TODO: agent?
-// TODO: connect, read timeouts
+// TODO: read timeouts
 
 var proxy = http.createServer(function (req, res) {
     protect(handleRequest, res)(req, res);
@@ -51,7 +50,6 @@ function handleRequest (req, res, head) {
     }
 
     forwardSocket.on('connect', protect(function () {
-        // TODO: try to wrap with clientresponse
         forwardSocket.write(requestLine + '\r\n');
         Object.keys(req.headers).forEach(function (headerName) {
             var headerValue = req.headers[headerName];
@@ -77,7 +75,9 @@ function handleRequest (req, res, head) {
         if (err.code == 'ECONNREFUSED') {
             throw new VisibleError(err.message, err, 502);
         } else if (err.code == 'EPIPE') {
-            throw new VisibleError('Connection lost', err, 502);
+            throw new VisibleError('Downstream connection lost', err, 502);
+        } else if (err.code == 'ETIMEDOUT') {
+            throw new VisibleError('Downstream connection timeout', err, 502);
         } else {
             throw err;
         }
