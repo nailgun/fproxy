@@ -1,6 +1,6 @@
 {
   "name": "http-fproxy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Forwarding HTTP/HTTPS proxy server",
   "main": "proxy.js",
   "dependencies": {
