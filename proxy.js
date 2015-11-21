@@ -83,6 +83,8 @@ function handleConnect (req, res, head) {
             throw new VisibleError('Downstream connection lost', err, 502);
         } else if (err.code == 'ETIMEDOUT') {
             throw new VisibleError(err.message, err, 502);
+        } else if (err.code == 'ECONNRESET') {
+            throw new VisibleError(err.message, err, 502);
         } else {
             throw err;
         }
@@ -179,13 +181,13 @@ function protect (func, res) {
             }
 
             if (res && res.req) {
-                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, addPrefix(err.toString()));
+                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, addPrefix(err.toString(), prefix));
             } else {
-                log(prefix + addPrefix(err.toString()));
+                log(prefix + addPrefix(err.toString(), prefix));
             }
 
             if (log == console.error && err.stack) {
-                log(prefix + addPrefix(err.stack));
+                log(prefix + addPrefix(err.stack, prefix));
             }
 
             if (res && res !== true) {
