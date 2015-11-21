@@ -58,6 +58,8 @@ function handleConnect (req, res, head) {
         }
     }
 
+    req.socket.pipe(forwardSocket);
+
     forwardSocket.on('connect', protect(function () {
         forwardSocket.pipe(res.socket);
 
@@ -70,25 +72,9 @@ function handleConnect (req, res, head) {
         if (head) {
             forwardSocket.write(head);
         }
-
-        req.socket.pipe(forwardSocket);
     }, res));
 
-    forwardSocket.on('error', protect(function (err) {
-        forwardSocket.destroy();
-
-        if (err.code == 'ECONNREFUSED') {
-            throw new VisibleError(err.message, err, 502);
-        } else if (err.code == 'EPIPE') {
-            throw new VisibleError('Downstream connection lost', err, 502);
-        } else if (err.code == 'ETIMEDOUT') {
-            throw new VisibleError(err.message, err, 502);
-        } else if (err.code == 'ECONNRESET') {
-            throw new VisibleError(err.message, err, 502);
-        } else {
-            throw err;
-        }
-    }, res));
+    handleDownstreamErrors(forwardSocket, res);
 }
 
 function handleRequest (req, res) {
@@ -99,20 +85,30 @@ function handleRequest (req, res) {
     console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine, 'via',
         downsteam['host'] + ':' + downsteam['port']);
 
-    var options = {
-        port: downsteam['port'],
-        hostname: downsteam['host'],
-        method: req.method,
-        path: req.url,
-        headers: req.headers
-    };
+    try {
+        var downstreamReq = http.request({
+            port: downsteam['port'],
+            hostname: downsteam['host'],
+            method: req.method,
+            path: req.url,
+            headers: req.headers
+        });
+    } catch (err) {
+        if (err.name == 'RangeError') {
+            throw new VisibleError('Invalid downstream proxy port', err, 400);
+        } else {
+            throw err;
+        }
+    }
 
-    var downstreamReq = http.request(options);
-    downstreamReq.on('response', function (downstreamRes) {
+    req.pipe(downstreamReq);
+
+    downstreamReq.on('response', protect(function (downstreamRes) {
         downstreamRes.pipe(res);
         res.writeHead(downstreamRes.statusCode, downstreamRes.headers);
-    });
-    req.pipe(downstreamReq);
+    }, res));
+
+    handleDownstreamErrors(downstreamReq, res);
 }
 
 function getDownstreamProxy (req, res) {
@@ -162,6 +158,24 @@ function getDownstreamProxy (req, res) {
         host: host,
         port: port
     };
+}
+
+function handleDownstreamErrors (downstream, res) {
+    downstream.on('error', protect(function (err) {
+        downstream.destroy();
+
+        if (err.code == 'ECONNREFUSED') {
+            throw new VisibleError(err.message, err, 502);
+        } else if (err.code == 'EPIPE') {
+            throw new VisibleError('Downstream connection lost', err, 502);
+        } else if (err.code == 'ETIMEDOUT') {
+            throw new VisibleError(err.message, err, 502);
+        } else if (err.code == 'ECONNRESET') {
+            throw new VisibleError(err.message, err, 502);
+        } else {
+            throw err;
+        }
+    }, res));
 }
 
 function protect (func, res) {
