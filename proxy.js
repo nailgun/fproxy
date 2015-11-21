@@ -12,7 +12,7 @@ var proxy = http.createServer(function (req, res) {
 }).on('connect', function (req, clientSocket, head) {
     var res = new http.ServerResponse(req);
     res.assignSocket(clientSocket);
-    protect(handleRequest, res)(req, res, head);
+    protect(handleConnect, res)(req, res, head);
 });
 
 var main = module.exports = protect(function () {
@@ -37,7 +37,7 @@ var main = module.exports = protect(function () {
 
 main();
 
-function handleRequest (req, res, head) {
+function handleConnect (req, res, head) {
     res.req = req;
     var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
 
@@ -59,6 +59,8 @@ function handleRequest (req, res, head) {
     }
 
     forwardSocket.on('connect', protect(function () {
+        forwardSocket.pipe(res.socket);
+
         forwardSocket.write(requestLine + '\r\n');
         Object.keys(req.headers).forEach(function (headerName) {
             var headerValue = req.headers[headerName];
@@ -69,13 +71,7 @@ function handleRequest (req, res, head) {
             forwardSocket.write(head);
         }
 
-        forwardSocket.pipe(res.socket);
-
-        if (req.method.toLowerCase() == 'connect') {
-            req.socket.pipe(forwardSocket);
-        } else {
-            req.pipe(forwardSocket);
-        }
+        req.socket.pipe(forwardSocket);
     }, res));
 
     forwardSocket.on('error', protect(function (err) {
@@ -91,6 +87,30 @@ function handleRequest (req, res, head) {
             throw err;
         }
     }, res));
+}
+
+function handleRequest (req, res) {
+    res.req = req;
+    var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
+
+    var downsteam = getDownstreamProxy(req, res);
+    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine, 'via',
+        downsteam['host'] + ':' + downsteam['port']);
+
+    var options = {
+        port: downsteam['port'],
+        hostname: downsteam['host'],
+        method: req.method,
+        path: req.url,
+        headers: req.headers
+    };
+
+    var downstreamReq = http.request(options);
+    downstreamReq.on('response', function (downstreamRes) {
+        downstreamRes.pipe(res);
+        res.writeHead(downstreamRes.statusCode, downstreamRes.headers);
+    });
+    req.pipe(downstreamReq);
 }
 
 function getDownstreamProxy (req, res) {
