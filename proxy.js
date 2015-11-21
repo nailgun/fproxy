@@ -106,7 +106,7 @@ function getDownstreamProxy (req, res) {
      */
     var header = req.headers['proxy-authorization'];
     if (!header) {
-        throw new VisibleError(res, 'Missing Proxy-Downstream-Proxy or Proxy-Authorization header', null, 400);
+        throw new VisibleError('Missing Proxy-Authorization header', null, 400);
     }
     delete req.headers['proxy-authorization'];
 
@@ -119,7 +119,7 @@ function getDownstreamProxy (req, res) {
         downstream = parts[1];
 
     if (authMethod.toLowerCase() != 'basic') {
-        throw new VisibleError(res, 'Invalid Proxy-Authorization method (only basic supported)', null, 400);
+        throw new VisibleError('Invalid Proxy-Authorization method (only basic supported)', null, 400);
     }
 
     downstream = new Buffer(downstream, 'base64').toString();
@@ -159,13 +159,13 @@ function protect (func, res) {
             }
 
             if (res && res.req) {
-                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, err);
+                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, addPrefix(err.toString()));
             } else {
-                log(prefix, err);
+                log(prefix + addPrefix(err.toString()));
             }
 
             if (log == console.error && err.stack) {
-                log(prefix, err.stack.split('\n').join('\n' + prefix));
+                log(prefix + addPrefix(err.stack));
             }
 
             if (res && res !== true) {
@@ -184,6 +184,10 @@ function fail (res, message, code) {
         'Content-Type': 'text/plain'
     });
     res.end('fproxy: ' + (message || 'Error'));
+}
+
+function addPrefix (message, prefix) {
+    return message.split('\n').join('\n' + prefix);
 }
 
 function VisibleError (message, reason, code) {
