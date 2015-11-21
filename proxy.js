@@ -37,18 +37,23 @@ var main = module.exports = protect(function () {
 
 main();
 
-function handleConnect (req, res, head) {
+function prepareRequest (req, res) {
     res.req = req;
-    var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
+    req.line = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
 
-    var downsteam = getDownstreamProxy(req, res);
-    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine, 'via',
-        downsteam['host'] + ':' + downsteam['port']);
+    var downstream = getDownstreamProxy(req);
+    logRequest(req, downstream);
+
+    return downstream;
+}
+
+function handleConnect (req, res, head) {
+    var downstream = prepareRequest(req, res);
 
     try {
         var downstreamSocket = net.connect({
-            host: downsteam.host,
-            port: downsteam.port
+            host: downstream.host,
+            port: downstream.port
         });
     } catch (err) {
         if (err.name == 'RangeError') {
@@ -63,7 +68,7 @@ function handleConnect (req, res, head) {
     downstreamSocket.on('connect', protect(function () {
         downstreamSocket.pipe(res.socket);
 
-        downstreamSocket.write(requestLine + '\r\n');
+        downstreamSocket.write(req.line + '\r\n');
         Object.keys(req.headers).forEach(function (headerName) {
             var headerValue = req.headers[headerName];
             downstreamSocket.write(headerName + ': ' + headerValue + '\r\n');
@@ -78,17 +83,12 @@ function handleConnect (req, res, head) {
 }
 
 function handleRequest (req, res) {
-    res.req = req;
-    var requestLine = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
-
-    var downsteam = getDownstreamProxy(req, res);
-    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, requestLine, 'via',
-        downsteam['host'] + ':' + downsteam['port']);
+    var downstream = prepareRequest(req, res);
 
     try {
         var downstreamReq = http.request({
-            port: downsteam['port'],
-            hostname: downsteam['host'],
+            port: downstream['port'],
+            hostname: downstream['host'],
             method: req.method,
             path: req.url,
             headers: req.headers
@@ -111,7 +111,7 @@ function handleRequest (req, res) {
     handleDownstreamErrors(downstreamReq, res);
 }
 
-function getDownstreamProxy (req, res) {
+function getDownstreamProxy (req) {
     /*
      * Downstream proxy configuration is taken from Proxy-Authorization header.
      * We can't use custom header here, because most HTTPS clients don't send any
@@ -224,6 +224,11 @@ function fail (res, message, code) {
 
 function addPrefix (message, prefix) {
     return message.split('\n').join('\n' + prefix);
+}
+
+function logRequest (req, downstream) {
+    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, req.line, 'via',
+        downstream['host'] + ':' + downstream['port']);
 }
 
 function FProxyError (message, reason, code) {
