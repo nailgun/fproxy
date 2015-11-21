@@ -46,35 +46,35 @@ function handleConnect (req, res, head) {
         downsteam['host'] + ':' + downsteam['port']);
 
     try {
-        var forwardSocket = net.connect({
+        var downstreamSocket = net.connect({
             host: downsteam.host,
             port: downsteam.port
         });
     } catch (err) {
         if (err.name == 'RangeError') {
-            throw new VisibleError('Invalid downstream proxy port', err, 400);
+            throw new FProxyError('Invalid downstream proxy port', err, 400);
         } else {
             throw err;
         }
     }
 
-    req.socket.pipe(forwardSocket);
+    req.socket.pipe(downstreamSocket);
 
-    forwardSocket.on('connect', protect(function () {
-        forwardSocket.pipe(res.socket);
+    downstreamSocket.on('connect', protect(function () {
+        downstreamSocket.pipe(res.socket);
 
-        forwardSocket.write(requestLine + '\r\n');
+        downstreamSocket.write(requestLine + '\r\n');
         Object.keys(req.headers).forEach(function (headerName) {
             var headerValue = req.headers[headerName];
-            forwardSocket.write(headerName + ': ' + headerValue + '\r\n');
+            downstreamSocket.write(headerName + ': ' + headerValue + '\r\n');
         });
-        forwardSocket.write('\r\n');
+        downstreamSocket.write('\r\n');
         if (head) {
-            forwardSocket.write(head);
+            downstreamSocket.write(head);
         }
     }, res));
 
-    handleDownstreamErrors(forwardSocket, res);
+    handleDownstreamErrors(downstreamSocket, res);
 }
 
 function handleRequest (req, res) {
@@ -95,7 +95,7 @@ function handleRequest (req, res) {
         });
     } catch (err) {
         if (err.name == 'RangeError') {
-            throw new VisibleError('Invalid downstream proxy port', err, 400);
+            throw new FProxyError('Invalid downstream proxy port', err, 400);
         } else {
             throw err;
         }
@@ -124,26 +124,26 @@ function getDownstreamProxy (req, res) {
      */
     var header = req.headers['proxy-authorization'];
     if (!header) {
-        throw new VisibleError('Missing Proxy-Authorization header', null, 400);
+        throw new FProxyError('Missing Proxy-Authorization header', null, 400);
     }
     delete req.headers['proxy-authorization'];
 
     var parts = header.split(' ', 2);
     if (parts.length != 2) {
-        throw new VisibleError('Invalid Proxy-Authorization header', null, 400);
+        throw new FProxyError('Invalid Proxy-Authorization header', null, 400);
 
     }
     var authMethod = parts[0],
         downstream = parts[1];
 
     if (authMethod.toLowerCase() != 'basic') {
-        throw new VisibleError('Invalid Proxy-Authorization method (only basic supported)', null, 400);
+        throw new FProxyError('Invalid Proxy-Authorization method (only basic supported)', null, 400);
     }
 
     downstream = new Buffer(downstream, 'base64').toString();
     parts = downstream.split(',', 3);
     if (parts.length != 3) {
-        throw new VisibleError('Invalid Proxy-Authorization header format', null, 400);
+        throw new FProxyError('Invalid Proxy-Authorization header format', null, 400);
     }
 
     var host = parts[0],
@@ -165,13 +165,13 @@ function handleDownstreamErrors (downstream, res) {
         downstream.destroy();
 
         if (err.code == 'ECONNREFUSED') {
-            throw new VisibleError(err.message, err, 502);
+            throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'EPIPE') {
-            throw new VisibleError('Downstream connection lost', err, 502);
+            throw new FProxyError('Downstream connection lost', err, 502);
         } else if (err.code == 'ETIMEDOUT') {
-            throw new VisibleError(err.message, err, 502);
+            throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'ECONNRESET') {
-            throw new VisibleError(err.message, err, 502);
+            throw new FProxyError(err.message, err, 502);
         } else {
             throw err;
         }
@@ -189,7 +189,7 @@ function protect (func, res) {
         } catch (err) {
             var log = console.error,
                 prefix = '<3>';
-            if (err.name == 'VisibleError' && err.code) {
+            if (err.name == 'FProxyError' && err.code) {
                 log = console.log;
                 prefix = '<5>';
             }
@@ -205,7 +205,7 @@ function protect (func, res) {
             }
 
             if (res && res !== true) {
-                if (err.name == 'VisibleError') {
+                if (err.name == 'FProxyError') {
                     fail(res, err.message, err.code);
                 } else {
                     fail(res);
@@ -226,12 +226,12 @@ function addPrefix (message, prefix) {
     return message.split('\n').join('\n' + prefix);
 }
 
-function VisibleError (message, reason, code) {
+function FProxyError (message, reason, code) {
     Error.call(this, message);
     this.message = message;
     this.reason = reason;
     this.code = code;
 }
 
-util.inherits(VisibleError, Error);
-VisibleError.prototype.name = 'VisibleError';
+util.inherits(FProxyError, Error);
+FProxyError.prototype.name = 'FProxyError';
