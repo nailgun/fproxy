@@ -174,6 +174,8 @@ function handleDownstreamErrors (downstream, res) {
             throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'EHOSTUNREACH') {
             throw new FProxyError(err.message, err, 502);
+        } else if (err.code == 'ENETUNREACH') {
+            throw new FProxyError(err.message, err, 502);
         } else {
             throw err;
         }
