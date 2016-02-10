@@ -168,6 +168,8 @@ function handleDownstreamErrors (downstream, res) {
             throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'EPIPE') {
             throw new FProxyError('Downstream connection lost', err, 502);
+        } else if (err.code == 'HPE_INVALID_CONSTANT') {
+            throw new FProxyError('Invalid downstream response', err, 502);
         } else if (err.code == 'ETIMEDOUT') {
             throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'ECONNRESET') {
