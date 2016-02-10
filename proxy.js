@@ -172,6 +172,8 @@ function handleDownstreamErrors (downstream, res) {
             throw new FProxyError(err.message, err, 502);
         } else if (err.code == 'ECONNRESET') {
             throw new FProxyError(err.message, err, 502);
+        } else if (err.code == 'EHOSTUNREACH') {
+            throw new FProxyError(err.message, err, 502);
         } else {
             throw err;
         }
