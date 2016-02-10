@@ -40,6 +40,10 @@ main();
 function prepareRequest (req, res) {
     res.req = req;
     req.line = [req.method, req.url, 'HTTP/'+req.httpVersion].join(' ');
+    req.remote = {
+        address: req.socket.remoteAddress,
+        port: req.socket.remotePort
+    };
 
     var downstream = getDownstreamProxy(req);
     logRequest(req, downstream);
@@ -201,7 +205,7 @@ function protect (func, res) {
             }
 
             if (res && res.req) {
-                log(prefix, res.req.socket.remoteAddress, res.req.socket.remotePort, addPrefix(err.toString(), prefix));
+                log(prefix, res.req.remote.address, res.req.remote.port, addPrefix(err.toString(), prefix));
             } else {
                 log(prefix + addPrefix(err.toString(), prefix));
             }
@@ -233,7 +237,7 @@ function addPrefix (message, prefix) {
 }
 
 function logRequest (req, downstream) {
-    console.log('<6>', req.socket.remoteAddress, req.socket.remotePort, req.line, 'via',
+    console.log('<6>', req.remote.address, req.remote.port, req.line, 'via',
         downstream['host'] + ':' + downstream['port']);
 }
 
