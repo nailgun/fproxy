@@ -67,8 +67,6 @@ function handleConnect (req, res, head) {
         }
     }
 
-    req.socket.pipe(downstreamSocket);
-
     downstreamSocket.on('connect', protect(function () {
         downstreamSocket.pipe(res.socket);
 
@@ -81,6 +79,8 @@ function handleConnect (req, res, head) {
         if (head) {
             downstreamSocket.write(head);
         }
+
+        req.socket.pipe(downstreamSocket);
     }, res));
 
     handleDownstreamErrors(downstreamSocket, res);
